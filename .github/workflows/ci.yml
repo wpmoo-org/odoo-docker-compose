@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Validate shell syntax
         run: find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
