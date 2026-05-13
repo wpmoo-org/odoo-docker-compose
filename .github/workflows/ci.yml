@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  scripts:
+    name: Scripts and Compose
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate shell syntax
+        run: find scripts -name '*.sh' -print0 | xargs -0 -n1 bash -n
+
+      - name: Validate addon checker CLI
+        run: python3 -B scripts/check-addons.py --help
+
+      - name: Run script tests
+        run: bash test/scripts.test.sh
+
+      - name: Validate Compose files
+        run: |
+          docker compose -f docker-compose_17.0.yml config
+          docker compose -f docker-compose_18.0.yml config
+          docker compose -f docker-compose_19.0.yml config
