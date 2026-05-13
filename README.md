@@ -72,6 +72,18 @@ Run a module lifecycle or test cycle:
 ./scripts/uninstall.sh my_module devel
 ```
 
+Run local quality checks for addons:
+
+```bash
+./scripts/check-addons.sh
+./scripts/lint.sh
+```
+
+`check-addons.sh` validates discovered `__manifest__.py` files under `addons/`
+and `odoo/custom/src/private/` against the configured `ODOO_VERSION`. If a
+`.pre-commit-config.yaml` file is present, `lint.sh` runs `pre-commit run -a`
+before the addon manifest checks.
+
 Create and restore a local development snapshot. Snapshots include the database
 dump and the matching Odoo filestore under `data/filestore/<db>`:
 
