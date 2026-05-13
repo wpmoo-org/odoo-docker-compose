@@ -1,5 +1,7 @@
 # WPMoo Odoo Compose
 
+[![CI](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml)
+
 Lightweight Docker Compose files for local Odoo development. This repository can
 be used standalone, or copied into a WPMoo-managed Odoo dev environment by
 `@wpmoo/odoo-dev`.
