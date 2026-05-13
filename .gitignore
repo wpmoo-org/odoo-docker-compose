@@ -1,0 +1,22 @@
+# Local runtime state
+.env
+.env.*
+!.env.example
+data/
+postgresql/
+filestore/
+sessions/
+
+# Backups and dumps
+*.dump
+*.sql
+*.bak
+*.backup
+*.zip
+*.tar
+*.tar.gz
+
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/*.log

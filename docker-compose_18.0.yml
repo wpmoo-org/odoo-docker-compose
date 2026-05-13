@@ -1,0 +1,38 @@
+# WPMoo Odoo Docker Compose template.
+# https://www.wpmoo.org
+
+services:
+  db:
+    image: "${POSTGRES_IMAGE:-postgres:17}"
+    user: root
+    environment:
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-odoo}"
+      POSTGRES_DB: postgres
+    restart: unless-stopped
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+
+  odoo:
+    image: "${ODOO_IMAGE:-odoo:18}"
+    user: root
+    depends_on:
+      - db
+    ports:
+      - "${HTTP_PORT:-10018}:8069"
+      - "${GEVENT_PORT:-20018}:8072"
+    tty: true
+    command: --
+    environment:
+      HOST: db
+      USER: odoo
+      PASSWORD: "${POSTGRES_PASSWORD:-odoo}"
+      ODOO_MASTER_PASSWORD: "${ODOO_MASTER_PASSWORD:-admin}"
+      PIP_BREAK_SYSTEM_PACKAGES: "1"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh
+      - ./addons:/mnt/extra-addons
+      - ./odoo/custom/src/private:/mnt/wpmoo-src/private
+      - ./etc:/etc/odoo
+      - ./data:/var/lib/odoo
+    restart: unless-stopped
