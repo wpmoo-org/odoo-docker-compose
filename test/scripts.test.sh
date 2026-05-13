@@ -91,6 +91,16 @@ test_module_lifecycle_scripts_use_stock_odoo_commands() {
   assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -u sale --test-enable --stop-after-init --test-tags /sale"
 }
 
+test_test_script_positional_module_overrides_env_default() {
+  local project
+  project="$(make_project)"
+  echo "ODOO_TEST_MODULE=env_module" >"$project/.env"
+
+  run_in_project "$project" ./scripts/test.sh sale --db devel
+
+  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init"
+}
+
 test_snapshot_and_restore_include_database_and_filestore() {
   local project
   project="$(make_project)"
@@ -126,6 +136,7 @@ for test_name in \
   test_compose_uses_env_version \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
+  test_test_script_positional_module_overrides_env_default \
   test_snapshot_and_restore_include_database_and_filestore \
   test_psql_and_restart_scripts_delegate_to_compose
 do

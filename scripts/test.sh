@@ -3,7 +3,7 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-modules="${ODOO_TEST_MODULE:-}"
+modules=""
 db=""
 mode="init"
 tags=""
@@ -35,6 +35,8 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+modules="${modules:-${ODOO_TEST_MODULE:-}}"
 
 if [[ -z "$modules" ]]; then
   die "Usage: $0 <module[,module]> [--db <db>] [--mode init|update] [--tags <tags>]"$'\n'"Or set ODOO_TEST_MODULE in .env."
