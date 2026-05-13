@@ -1,8 +1,8 @@
 # WPMoo Odoo Compose
 
-Lightweight Docker Compose files for local Odoo development without Doodba. This
-repository can be used standalone, or copied into a WPMoo-managed Odoo dev
-environment by `@wpmoo/odoo-dev`.
+Lightweight Docker Compose files for local Odoo development. This repository can
+be used standalone, or copied into a WPMoo-managed Odoo dev environment by
+`@wpmoo/odoo-dev`.
 
 ## Compose files
 
@@ -58,18 +58,44 @@ Run an Odoo shell/container command:
 ```bash
 ./scripts/shell.sh
 ./scripts/odoo-bin.sh --help
+./scripts/psql.sh devel
 ```
 
-Run a module install/test cycle:
+Run a module lifecycle or test cycle:
 
 ```bash
+./scripts/resetdb.sh devel base
+./scripts/install.sh my_module devel
+./scripts/update.sh my_module devel
 ./scripts/test.sh my_module
+./scripts/test.sh my_module --db devel --mode update --tags /my_module
+./scripts/uninstall.sh my_module devel
+```
+
+Create and restore a local development snapshot. Snapshots include the database
+dump and the matching Odoo filestore under `data/filestore/<db>`:
+
+```bash
+./scripts/snapshot.sh devel before-large-change
+./scripts/restore-snapshot.sh before-large-change devel
+```
+
+Export a translation template with stock Odoo:
+
+```bash
+./scripts/pot.sh my_module devel i18n/my_module.pot
 ```
 
 Stop:
 
 ```bash
 ./scripts/down.sh
+```
+
+Restart only Odoo:
+
+```bash
+./scripts/restart.sh
 ```
 
 ## Standalone Docker Compose usage

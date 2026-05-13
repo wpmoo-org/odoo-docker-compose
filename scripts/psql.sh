@@ -3,4 +3,7 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-compose "$@"
+db="${1:-postgres}"
+validate_db_name "$db"
+
+compose exec db psql -U odoo -d "$db"

@@ -3,4 +3,4 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-compose "$@"
+compose restart odoo

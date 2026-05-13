@@ -1,28 +1,59 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-project_dir="$(cd -- "$script_dir/.." && pwd)"
-cd "$project_dir"
+. "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
+modules="${ODOO_TEST_MODULE:-}"
+db=""
+mode="init"
+tags=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --db)
+      [[ $# -ge 2 ]] || die "Missing value for --db"
+      db="$2"
+      shift 2
+      ;;
+    --mode)
+      [[ $# -ge 2 ]] || die "Missing value for --mode"
+      mode="$2"
+      shift 2
+      ;;
+    --tags)
+      [[ $# -ge 2 ]] || die "Missing value for --tags"
+      tags="$2"
+      shift 2
+      ;;
+    -*)
+      die "Unknown option: $1"
+      ;;
+    *)
+      [[ -z "$modules" ]] || die "Only one module list argument is supported."
+      modules="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$modules" ]]; then
+  die "Usage: $0 <module[,module]> [--db <db>] [--mode init|update] [--tags <tags>]"$'\n'"Or set ODOO_TEST_MODULE in .env."
 fi
 
-module="${1:-${ODOO_TEST_MODULE:-}}"
-if [[ -z "$module" ]]; then
-  echo "Usage: $0 <module>" >&2
-  echo "Or set ODOO_TEST_MODULE in .env." >&2
-  exit 1
+validate_module_list "$modules"
+db="${db:-$(default_test_db "$modules")}"
+validate_db_name "$db"
+
+odoo_args=(-d "$db")
+case "$mode" in
+  init) odoo_args+=(-i "$modules") ;;
+  update) odoo_args+=(-u "$modules") ;;
+  *) die "Invalid test mode: $mode" ;;
+esac
+
+odoo_args+=(--test-enable --stop-after-init)
+if [[ -n "$tags" ]]; then
+  odoo_args+=(--test-tags "$tags")
 fi
 
-db="${ODOO_TEST_DB:-${module}_test}"
-
-"$script_dir/compose.sh" run --rm odoo odoo \
-  -d "$db" \
-  -i "$module" \
-  --test-enable \
-  --stop-after-init
+compose run --rm odoo odoo "${odoo_args[@]}"
