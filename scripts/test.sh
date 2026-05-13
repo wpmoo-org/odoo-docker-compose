@@ -45,6 +45,7 @@ fi
 validate_module_list "$modules"
 db="${db:-$(default_test_db "$modules")}"
 validate_db_name "$db"
+tags="${tags:-$(default_test_tags "$modules")}"
 
 odoo_args=(-d "$db")
 case "$mode" in

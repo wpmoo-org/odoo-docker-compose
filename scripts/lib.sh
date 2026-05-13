@@ -74,3 +74,8 @@ default_test_db() {
   local modules="$1"
   printf '%s' "${ODOO_TEST_DB:-$(first_module "$modules")_test}"
 }
+
+default_test_tags() {
+  local modules="$1"
+  printf '/%s' "${modules//,/,/}"
+}

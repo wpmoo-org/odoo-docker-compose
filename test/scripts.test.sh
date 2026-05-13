@@ -98,7 +98,7 @@ test_test_script_positional_module_overrides_env_default() {
 
   run_in_project "$project" ./scripts/test.sh sale --db devel
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init"
+  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init --test-tags /sale"
 }
 
 test_snapshot_and_restore_include_database_and_filestore() {
