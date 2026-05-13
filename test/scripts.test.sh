@@ -132,13 +132,24 @@ test_psql_and_restart_scripts_delegate_to_compose() {
   assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml restart odoo"
 }
 
+test_pot_exports_with_odoo_i18n_command() {
+  local project
+  project="$(make_project)"
+
+  run_in_project "$project" ./scripts/pot.sh sale devel i18n/sale.pot
+
+  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm -v $project:/mnt/project odoo bash -lc"
+  assert_log_contains "$project/docker.log" "bash devel /mnt/project/i18n/sale.pot sale"
+}
+
 for test_name in \
   test_compose_uses_env_version \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \
   test_snapshot_and_restore_include_database_and_filestore \
-  test_psql_and_restart_scripts_delegate_to_compose
+  test_psql_and_restart_scripts_delegate_to_compose \
+  test_pot_exports_with_odoo_i18n_command
 do
   "$test_name"
   tests_run=$((tests_run + 1))

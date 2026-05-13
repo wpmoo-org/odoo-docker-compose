@@ -13,11 +13,25 @@ validate_db_name "$db"
 
 mkdir -p "$(dirname "$project_dir/$output")"
 
-compose run --rm -v "$project_dir:/mnt/project" odoo odoo \
-  -d "$db" \
-  --i18n-export="/mnt/project/$output" \
-  --modules="$modules" \
-  --stop-after-init
+IFS=',' read -r -a module_array <<<"$modules"
+
+compose run --rm -v "$project_dir:/mnt/project" odoo bash -lc '
+set -euo pipefail
+db="$1"
+output="$2"
+shift 2
+config="$(mktemp)"
+trap '\''rm -f "$config"'\'' EXIT
+cp /etc/odoo/odoo.conf "$config"
+printf "\ndb_password = %s\n" "${PASSWORD:-odoo}" >>"$config"
+wait-for-psql.py \
+  --db_host "${HOST:-db}" \
+  --db_port "${PORT:-5432}" \
+  --db_user "${USER:-odoo}" \
+  --db_password "${PASSWORD:-odoo}" \
+  --timeout=30
+odoo i18n export -c "$config" -d "$db" -o "$output" "$@"
+' bash "$db" "/mnt/project/$output" "${module_array[@]}"
 
 if [[ -f "$project_dir/$output" ]]; then
   cat "$project_dir/$output"
