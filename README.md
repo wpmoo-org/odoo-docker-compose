@@ -1,7 +1,7 @@
 ![WPMoo Odoo Compose local development overview](docs/assets/odoo-compose-hero.png)
 
 [![CI](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 # WPMoo Odoo Compose
 
