@@ -219,7 +219,34 @@ MANIFEST
   if run_in_project "$project" ./scripts/check-addons.sh >"$project/check-invalid.out" 2>"$project/check-invalid.err"; then
     fail "expected check-addons to fail for mismatched manifest version"
   fi
-  assert_file_contains "$project/check-invalid.err" "version must start with 19.0."
+  assert_file_contains "$project/check-invalid.err" "addons/bad_module/__manifest__.py: addon 'bad_module' field 'version': must start with 19.0."
+}
+
+test_check_addons_blocks_public_dependencies_on_private_addons() {
+  local project
+  project="$(make_project)"
+  mkdir -p "$project/addons/community_module" "$project/odoo/custom/src/private/private_paid"
+  cat >"$project/addons/community_module/__manifest__.py" <<'MANIFEST'
+{
+    "name": "Community Module",
+    "version": "19.0.1.0.0",
+    "depends": ["base", "private_paid"],
+    "license": "LGPL-3",
+}
+MANIFEST
+  cat >"$project/odoo/custom/src/private/private_paid/__manifest__.py" <<'MANIFEST'
+{
+    "name": "Private Paid",
+    "version": "19.0.1.0.0",
+    "depends": ["base"],
+    "license": "OPL-1",
+}
+MANIFEST
+
+  if run_in_project "$project" ./scripts/check-addons.sh >"$project/check-private-dep.out" 2>"$project/check-private-dep.err"; then
+    fail "expected check-addons to fail when a public addon depends on a private addon"
+  fi
+  assert_file_contains "$project/check-private-dep.err" "addons/community_module/__manifest__.py: addon 'community_module' field 'depends': public addon must not depend on private addon 'private_paid'"
 }
 
 test_lint_runs_pre_commit_when_configured_and_addon_check() {
@@ -275,6 +302,7 @@ for test_name in \
   test_pot_exports_with_odoo_i18n_command \
   test_pot_usage_errors_are_clear \
   test_check_addons_validates_manifest_metadata \
+  test_check_addons_blocks_public_dependencies_on_private_addons \
   test_lint_runs_pre_commit_when_configured_and_addon_check \
   test_lint_usage_errors_are_clear
 do

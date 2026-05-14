@@ -84,7 +84,9 @@ Run local quality checks for addons:
 ```
 
 `check-addons.sh` validates discovered `__manifest__.py` files under `addons/`
-and `odoo/custom/src/private/` against the configured `ODOO_VERSION`.
+and `odoo/custom/src/private/` against the configured `ODOO_VERSION`. It also
+rejects public addons under `addons/` that depend on private addons under
+`odoo/custom/src/private/`.
 `lint.sh` takes no arguments. When a `.pre-commit-config.yaml` file is present,
 it first runs `pre-commit run -a`, then runs the addon manifest checks. If
 `pre-commit` is not installed, install it or remove the config file before
