@@ -128,6 +128,31 @@ test_snapshot_and_restore_include_database_and_filestore() {
   assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db pg_restore -U odoo -d devel --clean --if-exists"
 }
 
+test_snapshot_and_restore_usage_errors_are_clear() {
+  local project
+  project="$(make_project)"
+
+  if run_in_project "$project" ./scripts/snapshot.sh devel bad/snap >"$project/snapshot-invalid.out" 2>"$project/snapshot-invalid.err"; then
+    fail "expected snapshot to fail for invalid snapshot name"
+  fi
+  assert_file_contains "$project/snapshot-invalid.err" "Invalid snapshot name: bad/snap. Use letters, numbers, dots, underscores, and dashes only; do not start with a dash."
+
+  if run_in_project "$project" ./scripts/snapshot.sh devel snap1 extra >"$project/snapshot-usage.out" 2>"$project/snapshot-usage.err"; then
+    fail "expected snapshot to fail for too many arguments"
+  fi
+  assert_file_contains "$project/snapshot-usage.err" "Usage: ./scripts/snapshot.sh [db] [snapshot-name]"
+
+  if run_in_project "$project" ./scripts/restore-snapshot.sh bad/snap >"$project/restore-invalid.out" 2>"$project/restore-invalid.err"; then
+    fail "expected restore to fail for invalid snapshot name"
+  fi
+  assert_file_contains "$project/restore-invalid.err" "Invalid snapshot name: bad/snap. Use letters, numbers, dots, underscores, and dashes only; do not start with a dash."
+
+  if run_in_project "$project" ./scripts/restore-snapshot.sh >"$project/restore-usage.out" 2>"$project/restore-usage.err"; then
+    fail "expected restore to fail without snapshot name"
+  fi
+  assert_file_contains "$project/restore-usage.err" "Usage: ./scripts/restore-snapshot.sh <snapshot-name> [db]"
+}
+
 test_psql_and_restart_scripts_delegate_to_compose() {
   local project
   project="$(make_project)"
@@ -147,6 +172,22 @@ test_pot_exports_with_odoo_i18n_command() {
 
   assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm -v $project:/mnt/project odoo bash -lc"
   assert_log_contains "$project/docker.log" "bash devel /mnt/project/i18n/sale.pot sale"
+}
+
+test_pot_usage_errors_are_clear() {
+  local project
+  project="$(make_project)"
+
+  if run_in_project "$project" ./scripts/pot.sh >"$project/pot-usage.out" 2>"$project/pot-usage.err"; then
+    fail "expected pot to fail without a module list"
+  fi
+  assert_file_contains "$project/pot-usage.err" "Usage: ./scripts/pot.sh <module[,module]> [db] [output]"
+  assert_file_contains "$project/pot-usage.err" "Or set ODOO_TEST_MODULE in .env."
+
+  if run_in_project "$project" ./scripts/pot.sh sale devel i18n/sale.pot extra >"$project/pot-extra.out" 2>"$project/pot-extra.err"; then
+    fail "expected pot to fail for too many arguments"
+  fi
+  assert_file_contains "$project/pot-extra.err" "Usage: ./scripts/pot.sh <module[,module]> [db] [output]"
 }
 
 test_check_addons_validates_manifest_metadata() {
@@ -213,16 +254,29 @@ STUB
   assert_file_contains "$project/lint.out" "Checked 1 addon manifest"
 }
 
+test_lint_usage_errors_are_clear() {
+  local project
+  project="$(make_project)"
+
+  if run_in_project "$project" ./scripts/lint.sh unexpected >"$project/lint-usage.out" 2>"$project/lint-usage.err"; then
+    fail "expected lint to fail for unexpected arguments"
+  fi
+  assert_file_contains "$project/lint-usage.err" "Usage: ./scripts/lint.sh"
+}
+
 for test_name in \
   test_compose_uses_env_version \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \
   test_snapshot_and_restore_include_database_and_filestore \
+  test_snapshot_and_restore_usage_errors_are_clear \
   test_psql_and_restart_scripts_delegate_to_compose \
   test_pot_exports_with_odoo_i18n_command \
+  test_pot_usage_errors_are_clear \
   test_check_addons_validates_manifest_metadata \
-  test_lint_runs_pre_commit_when_configured_and_addon_check
+  test_lint_runs_pre_commit_when_configured_and_addon_check \
+  test_lint_usage_errors_are_clear
 do
   "$test_name"
   tests_run=$((tests_run + 1))

@@ -3,6 +3,8 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
+[[ $# -le 2 ]] || die_usage "[db] [snapshot-name]"
+
 db="${1:-devel}"
 snapshot="${2:-${db}-$(date +%Y_%m_%d-%H_%M)}"
 

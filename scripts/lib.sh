@@ -20,6 +20,25 @@ die() {
   exit 1
 }
 
+script_usage_name() {
+  local source
+  for source in "${BASH_SOURCE[@]}"; do
+    if [[ "$(basename "$source")" != "lib.sh" ]]; then
+      printf './scripts/%s' "$(basename "$source")"
+      return
+    fi
+  done
+  printf './scripts/%s' "$(basename "$0")"
+}
+
+die_usage() {
+  local usage_suffix="${1:-}"
+  if [[ -n "$usage_suffix" ]]; then
+    die "Usage: $(script_usage_name) $usage_suffix"
+  fi
+  die "Usage: $(script_usage_name)"
+}
+
 if [[ ! -f "$compose_file" ]]; then
   die "Missing compose file: $compose_file"$'\n'"Set ODOO_VERSION to one of: 17.0, 18.0, 19.0"
 fi
@@ -45,8 +64,8 @@ validate_db_name() {
 
 validate_snapshot_name() {
   local snapshot="$1"
-  [[ "$snapshot" =~ ^[A-Za-z0-9_.-]+$ ]] || die "Invalid snapshot name: $snapshot"
-  [[ "$snapshot" != -* ]] || die "Invalid snapshot name: $snapshot"
+  [[ "$snapshot" =~ ^[A-Za-z0-9_.-]+$ && "$snapshot" != -* ]] ||
+    die "Invalid snapshot name: $snapshot. Use letters, numbers, dots, underscores, and dashes only; do not start with a dash."
 }
 
 validate_module_name() {

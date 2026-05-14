@@ -3,11 +3,17 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
+pot_usage() {
+  die "Usage: $(script_usage_name) <module[,module]> [db] [output]"$'\n'"Or set ODOO_TEST_MODULE in .env."
+}
+
+[[ $# -le 3 ]] || pot_usage
+
 modules="${1:-${ODOO_TEST_MODULE:-}}"
 db="${2:-devel}"
 output="${3:-i18n/$(first_module "${modules:-module}").pot}"
 
-[[ -n "$modules" ]] || die "Usage: $0 <module[,module]> [db] [output]"
+[[ -n "$modules" ]] || pot_usage
 validate_module_list "$modules"
 validate_db_name "$db"
 

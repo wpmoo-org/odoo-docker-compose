@@ -6,7 +6,7 @@
 
 Lightweight Docker Compose files for local Odoo development. This repository can
 be used standalone, or copied into a WPMoo-managed Odoo dev environment by
-`@wpmoo/odoo-dev`.
+`@wpmoo/odoo`.
 
 ## Compose files
 
@@ -84,23 +84,37 @@ Run local quality checks for addons:
 ```
 
 `check-addons.sh` validates discovered `__manifest__.py` files under `addons/`
-and `odoo/custom/src/private/` against the configured `ODOO_VERSION`. If a
-`.pre-commit-config.yaml` file is present, `lint.sh` runs `pre-commit run -a`
-before the addon manifest checks.
+and `odoo/custom/src/private/` against the configured `ODOO_VERSION`.
+`lint.sh` takes no arguments. When a `.pre-commit-config.yaml` file is present,
+it first runs `pre-commit run -a`, then runs the addon manifest checks. If
+`pre-commit` is not installed, install it or remove the config file before
+running `lint.sh`.
 
-Create and restore a local development snapshot. Snapshots include the database
-dump and the matching Odoo filestore under `data/filestore/<db>`:
+Create and restore a local development snapshot:
 
 ```bash
 ./scripts/snapshot.sh devel before-large-change
 ./scripts/restore-snapshot.sh before-large-change devel
 ```
 
+`snapshot.sh [db] [snapshot-name]` defaults to database `devel` and a timestamped
+name. Each snapshot writes `backups/snapshots/<name>.dump`,
+`<name>.filestore.tar.gz`, and `<name>.json`. The filestore archive contains the
+matching Odoo filestore from `data/filestore/<db>` when it exists.
+`restore-snapshot.sh <snapshot-name> [db]` restores the dump and filestore into
+the target database, replacing the current local database and filestore for that
+database. Snapshot names may contain only letters, numbers, dots, underscores,
+and dashes, and may not start with a dash.
+
 Export a translation template with stock Odoo:
 
 ```bash
 ./scripts/pot.sh my_module devel i18n/my_module.pot
 ```
+
+`pot.sh <module[,module]> [db] [output]` defaults to database `devel` and
+`i18n/<first-module>.pot`. The module list can also come from `ODOO_TEST_MODULE`
+in `.env`. The command uses stock `odoo i18n export` inside the Odoo container.
 
 Stop:
 
