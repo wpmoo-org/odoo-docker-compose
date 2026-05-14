@@ -1,6 +1,7 @@
 ![WPMoo Odoo Compose local development overview](docs/assets/odoo-compose-hero.png)
 
-[![CI](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-cangir-FFDD00?logo=buymeacoffee&logoColor=000000)](https://www.buymeacoffee.com/cangir)
+[![CI](https://img.shields.io/github/actions/workflow/status/wpmoo-org/odoo-docker-compose/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=000000&style=flat-square)](https://www.buymeacoffee.com/cangir)
+
 
 # WPMoo Odoo Compose
 
