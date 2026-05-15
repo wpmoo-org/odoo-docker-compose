@@ -3,7 +3,7 @@
 services:
   db:
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql
 
   odoo:
     environment:

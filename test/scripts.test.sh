@@ -20,6 +20,14 @@ assert_file_contains() {
     fail "expected file to contain: $expected"$'\n'"actual file:"$'\n'"$(cat "$file")"
 }
 
+assert_file_not_contains() {
+  local file="$1"
+  local unexpected="$2"
+  if grep -F -- "$unexpected" "$file" >/dev/null; then
+    fail "expected file not to contain: $unexpected"$'\n'"actual file:"$'\n'"$(cat "$file")"
+  fi
+}
+
 assert_log_contains() {
   local log_file="$1"
   local expected="$2"
@@ -98,6 +106,18 @@ test_compose_uses_default_dev_overlay() {
   run_in_project "$project" ./scripts/compose.sh config
 
   assert_compose_log_contains "$project" dev "config"
+}
+
+test_generated_env_mounts_postgres_parent_directory() {
+  local overlay
+
+  for overlay in dev debug stage prod; do
+    assert_file_contains "$repo_root/resources/generated-env/compose/$overlay.yaml" "/var/lib/postgresql"
+    assert_file_not_contains "$repo_root/resources/generated-env/compose/$overlay.yaml" "/var/lib/postgresql/data"
+  done
+
+  assert_file_contains "$repo_root/resources/generated-env/compose/test.yaml" "/var/lib/postgresql"
+  assert_file_not_contains "$repo_root/resources/generated-env/compose/test.yaml" "/var/lib/postgresql/data"
 }
 
 test_compose_uses_stage_overlay_from_env() {
@@ -405,6 +425,7 @@ test_lint_usage_errors_are_clear() {
 
 for test_name in \
   test_compose_uses_default_dev_overlay \
+  test_generated_env_mounts_postgres_parent_directory \
   test_compose_uses_stage_overlay_from_env \
   test_compose_uses_optional_overlays_from_env \
   test_compose_derives_ports_from_odoo_version \
