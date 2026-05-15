@@ -5,13 +5,24 @@
 
 # WPMoo Odoo Compose
 
-Lightweight Docker Compose files for local Odoo development. This repository can
+Lightweight Docker Compose resources for Odoo development. This repository can
 be used standalone, or copied into a WPMoo-managed Odoo dev environment by
 `@wpmoo/odoo`.
 
-## Compose files
+## Compose layouts
 
-Version-specific compose files are static and easy to inspect:
+Compact generated-environment payload (preferred by `@wpmoo/odoo`):
+
+```text
+resources/generated-env/compose.yaml
+resources/generated-env/compose/dev.yaml
+resources/generated-env/compose/stage.yaml
+resources/generated-env/compose/prod.yaml
+resources/generated-env/config/odoo/odoo.conf
+resources/generated-env/resources/odoo/entrypoint.sh
+```
+
+Legacy compatibility files (repository root):
 
 ```text
 docker-compose_17.0.yml
@@ -19,7 +30,11 @@ docker-compose_18.0.yml
 docker-compose_19.0.yml
 ```
 
-Default standalone settings use Odoo 19 on port `10019`. Image tags can be
+`@wpmoo/odoo` prefers the compact payload first. Older pinned refs that do not
+have `resources/generated-env/` can still be consumed through the legacy
+root-level files.
+
+Default local settings use Odoo 19 on port `10019`. Image tags can be
 overridden in `.env` with `ODOO_IMAGE` and `POSTGRES_IMAGE`.
 
 ## Source addons
@@ -43,6 +58,19 @@ The static Odoo config uses:
 ```text
 /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons,/mnt/wpmoo-addons
 ```
+
+## Standalone usage (compact payload)
+
+```bash
+mkdir -p ../my_product_dev
+cp -R resources/generated-env/. ../my_product_dev/
+cp .env.example ../my_product_dev/.env
+cd ../my_product_dev
+./scripts/up.sh
+```
+
+Set `WPMOO_ENV=stage` or `WPMOO_ENV=prod` only after providing production-grade
+secrets, storage volumes, and reverse proxy/TLS controls.
 
 ## Usage with scripts
 
@@ -133,7 +161,7 @@ Restart only Odoo:
 
 ## Standalone Docker Compose usage
 
-Without scripts, choose a version-specific compose file:
+Legacy/root-layout usage without scripts:
 
 ```bash
 cp .env.example .env
@@ -155,7 +183,8 @@ the local development path harder to understand.
 ## Notes
 
 - Keep local `.env`, `data/`, `postgresql/`, and backups out of Git.
-- For production, set real secrets and use a reverse proxy with TLS.
+- For production, set real secrets, non-default credentials, persistent
+  volumes, and a reverse proxy with TLS before exposing services.
 - For multi-version development, create a separate environment/worktree per Odoo branch.
 
 
