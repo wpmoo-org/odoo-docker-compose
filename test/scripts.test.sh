@@ -55,14 +55,23 @@ compose_expectation() {
   local project="$1"
   local env_name="$2"
   local command_suffix="$3"
-  printf 'docker compose --project-directory %s -f compose.yaml -f compose/%s.yaml %s' "$project" "$env_name" "$command_suffix"
+  shift 3
+
+  local args
+  args="docker compose --project-directory $project -f compose.yaml -f compose/$env_name.yaml"
+  local overlay
+  for overlay in "$@"; do
+    args+=" -f compose/$overlay.yaml"
+  done
+  printf '%s %s' "$args" "$command_suffix"
 }
 
 assert_compose_log_contains() {
   local project="$1"
   local env_name="$2"
   local command_suffix="$3"
-  assert_log_contains "$project/docker.log" "$(compose_expectation "$project" "$env_name" "$command_suffix")"
+  shift 3
+  assert_log_contains "$project/docker.log" "$(compose_expectation "$project" "$env_name" "$command_suffix" "$@")"
 }
 
 run_in_project() {
@@ -91,6 +100,68 @@ test_compose_uses_stage_overlay_from_env() {
   run_in_project "$project" ./scripts/compose.sh config
 
   assert_compose_log_contains "$project" stage "config"
+}
+
+test_compose_uses_optional_overlays_from_env() {
+  local project
+  project="$(make_project)"
+  cat >"$project/.env" <<'ENV'
+WPMOO_ENV=stage
+WPMOO_COMPOSE_OVERLAYS=proxy,tools
+ENV
+
+  run_in_project "$project" ./scripts/compose.sh config
+
+  assert_compose_log_contains "$project" stage "config" proxy tools
+}
+
+test_compose_rejects_optional_overlay_as_primary_env() {
+  local env_name project
+  for env_name in proxy tools; do
+    project="$(make_project)"
+    echo "WPMOO_ENV=$env_name" >"$project/.env"
+
+    if run_in_project "$project" ./scripts/compose.sh config >"$project/$env_name-env.out" 2>"$project/$env_name-env.err"; then
+      fail "expected WPMOO_ENV=$env_name to fail"
+    fi
+
+    assert_file_contains "$project/$env_name-env.err" "Invalid WPMOO_ENV: $env_name. Use one of: dev, debug, test, stage, prod."
+    assert_file_contains "$project/$env_name-env.err" "Use WPMOO_COMPOSE_OVERLAYS=proxy,tools for optional overlays."
+  done
+}
+
+test_entrypoint_enables_proxy_mode_from_environment() {
+  local project
+  project="$(make_project)"
+  cp "$project/config/odoo/odoo.conf" "$project/readonly-odoo.conf"
+  chmod a-w "$project/readonly-odoo.conf"
+  cat >"$project/bin/wait-for-psql.py" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'wait-for-psql.py %s\n' "$*" >>"$ENTRYPOINT_STUB_LOG"
+STUB
+  cat >"$project/bin/odoo" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'odoo %s\n' "$*" >>"$ENTRYPOINT_STUB_LOG"
+grep -E '^[[:space:]]*proxy_mode[[:space:]]*=' "$ODOO_RC" >"$ENTRYPOINT_PROXY_MODE_OUT"
+STUB
+  chmod +x "$project/bin/wait-for-psql.py" "$project/bin/odoo"
+
+  (
+    cd "$project"
+    PATH="$project/bin:$PATH" \
+      ODOO_RC="$project/readonly-odoo.conf" \
+      ODOO_MASTER_PASSWORD="" \
+      PROXY_MODE=1 \
+      WPMOO_ADDONS_DIR="$project/wpmoo-addons" \
+      WPMOO_SRC_DIR="$project/odoo/custom/src/private" \
+      ENTRYPOINT_STUB_LOG="$project/entrypoint.log" \
+      ENTRYPOINT_PROXY_MODE_OUT="$project/proxy-mode.out" \
+      ./resources/odoo/entrypoint.sh --
+  )
+
+  assert_file_contains "$project/proxy-mode.out" "proxy_mode = True"
 }
 
 test_resetdb_installs_requested_modules() {
@@ -316,6 +387,9 @@ test_lint_usage_errors_are_clear() {
 for test_name in \
   test_compose_uses_default_dev_overlay \
   test_compose_uses_stage_overlay_from_env \
+  test_compose_uses_optional_overlays_from_env \
+  test_compose_rejects_optional_overlay_as_primary_env \
+  test_entrypoint_enables_proxy_mode_from_environment \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \

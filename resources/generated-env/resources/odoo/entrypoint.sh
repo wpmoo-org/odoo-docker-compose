@@ -14,19 +14,51 @@ if [ -s /etc/odoo/requirements.txt ]; then
 fi
 
 if [[ -f "$ODOO_RC" && ! -w "$ODOO_RC" ]]; then
-  runtime_odoo_rc="/tmp/wpmoo-odoo.conf"
+  runtime_odoo_rc="$(mktemp)"
   cp "$ODOO_RC" "$runtime_odoo_rc"
   ODOO_RC="$runtime_odoo_rc"
 fi
 export ODOO_RC
 
-if [[ -n "${ODOO_MASTER_PASSWORD:-}" ]]; then
-  if grep -q -E '^[[:space:]]*admin_passwd[[:space:]]*=' "$ODOO_RC"; then
-    escaped_master_password="$(printf '%s' "$ODOO_MASTER_PASSWORD" | sed -e 's/[\/&]/\\&/g')"
-    sed -i -E "s/^[[:space:]]*admin_passwd[[:space:]]*=.*/admin_passwd = ${escaped_master_password}/" "$ODOO_RC"
+upsert_odoo_config() {
+  local param="$1"
+  local value="$2"
+  local tmp_config line replaced
+  replaced=0
+
+  if grep -q -E "^[[:space:]]*${param}[[:space:]]*=" "$ODOO_RC"; then
+    tmp_config="$(mktemp)"
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      if [[ "$line" =~ ^[[:space:]]*${param}[[:space:]]*= && "$replaced" -eq 0 ]]; then
+        printf '%s = %s\n' "$param" "$value" >>"$tmp_config"
+        replaced=1
+      else
+        printf '%s\n' "$line" >>"$tmp_config"
+      fi
+    done <"$ODOO_RC"
+    cat "$tmp_config" >"$ODOO_RC"
+    rm -f "$tmp_config"
   else
-    printf '\nadmin_passwd = %s\n' "$ODOO_MASTER_PASSWORD" >> "$ODOO_RC"
+    printf '\n%s = %s\n' "$param" "$value" >>"$ODOO_RC"
   fi
+}
+
+normalize_bool() {
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$value" in
+    1 | true | yes | on) printf 'True' ;;
+    0 | false | no | off) printf 'False' ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+if [[ -n "${ODOO_MASTER_PASSWORD:-}" ]]; then
+  upsert_odoo_config "admin_passwd" "$ODOO_MASTER_PASSWORD"
+fi
+
+if [[ -n "${ODOO_PROXY_MODE:-${PROXY_MODE:-}}" ]]; then
+  upsert_odoo_config "proxy_mode" "$(normalize_bool "${ODOO_PROXY_MODE:-${PROXY_MODE:-}}")"
 fi
 
 prepare_wpmoo_addons() {

@@ -3,7 +3,7 @@
 services:
   db:
     volumes:
-      - ./postgresql:/var/lib/postgresql/18/docker
+      - ./postgresql:/var/lib/postgresql/data
 
   odoo:
     environment:

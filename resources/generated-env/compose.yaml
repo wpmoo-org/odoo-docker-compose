@@ -2,7 +2,7 @@
 
 services:
   db:
-    image: "${POSTGRES_IMAGE:-postgres:18}"
+    image: "${POSTGRES_IMAGE:-postgres:${POSTGRES_VERSION:-18}}"
     user: root
     environment:
       POSTGRES_USER: "${POSTGRES_USER:-odoo}"
@@ -13,7 +13,7 @@ services:
       - wpmoo
 
   odoo:
-    image: "${ODOO_IMAGE:-odoo:19}"
+    image: "${ODOO_IMAGE:-odoo:${ODOO_VERSION:-19.0}}"
     user: root
     depends_on:
       - db

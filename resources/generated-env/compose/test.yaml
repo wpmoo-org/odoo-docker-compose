@@ -3,7 +3,7 @@
 services:
   db:
     tmpfs:
-      - /var/lib/postgresql/18/docker
+      - /var/lib/postgresql/data
 
   odoo:
     environment:

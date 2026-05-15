@@ -39,3 +39,5 @@ jobs:
           docker compose -f resources/generated-env/compose.yaml -f resources/generated-env/compose/dev.yaml config
           docker compose -f resources/generated-env/compose.yaml -f resources/generated-env/compose/stage.yaml config
           docker compose -f resources/generated-env/compose.yaml -f resources/generated-env/compose/prod.yaml config
+          docker compose -f resources/generated-env/compose.yaml -f resources/generated-env/compose/stage.yaml -f resources/generated-env/compose/proxy.yaml --profile proxy config
+          docker compose -f resources/generated-env/compose.yaml -f resources/generated-env/compose/dev.yaml -f resources/generated-env/compose/tools.yaml --profile tools config

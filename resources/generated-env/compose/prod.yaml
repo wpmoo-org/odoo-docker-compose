@@ -3,11 +3,12 @@
 services:
   db:
     volumes:
-      - db-data:/var/lib/postgresql/18/docker
+      - db-data:/var/lib/postgresql/data
 
   odoo:
     environment:
       PROXY_MODE: "${PROXY_MODE:-1}"
+      ODOO_PROXY_MODE: "${ODOO_PROXY_MODE:-${PROXY_MODE:-1}}"
     configs:
       - source: wpmoo-odoo-entrypoint
         target: /entrypoint.sh

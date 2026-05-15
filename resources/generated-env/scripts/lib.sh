@@ -57,8 +57,11 @@ load_env_file() {
 load_env_file "$project_dir/.env"
 
 odoo_version="${ODOO_VERSION:-19.0}"
+postgres_version="${POSTGRES_VERSION:-18}"
 wpmoo_env="${WPMOO_ENV:-dev}"
-compose_file="compose/${wpmoo_env}.yaml"
+wpmoo_compose_overlays="${WPMOO_COMPOSE_OVERLAYS:-}"
+export ODOO_IMAGE="${ODOO_IMAGE:-odoo:${odoo_version}}"
+export POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:${postgres_version}}"
 
 script_usage_name() {
   local source
@@ -79,20 +82,45 @@ die_usage() {
   die "Usage: $(script_usage_name)"
 }
 
-if [[ ! "$wpmoo_env" =~ ^[A-Za-z0-9_.-]+$ || "$wpmoo_env" == -* || "$wpmoo_env" == *..* || "$wpmoo_env" == */* ]]; then
-  die "Invalid WPMOO_ENV: $wpmoo_env"
-fi
-
 if [[ ! -f compose.yaml ]]; then
   die "Missing compose file: compose.yaml"
 fi
 
-if [[ ! -f "$compose_file" ]]; then
-  die "Missing compose overlay: $compose_file"$'\n'"Set WPMOO_ENV to one of: dev, debug, test, stage, prod, proxy, tools"
+case "$wpmoo_env" in
+  dev | debug | test | stage | prod) ;;
+  *)
+    die "Invalid WPMOO_ENV: $wpmoo_env. Use one of: dev, debug, test, stage, prod."$'\n'"Use WPMOO_COMPOSE_OVERLAYS=proxy,tools for optional overlays."
+    ;;
+esac
+
+compose_files=("compose/${wpmoo_env}.yaml")
+
+if [[ -n "$wpmoo_compose_overlays" ]]; then
+  IFS=',' read -r -a overlay_array <<<"$wpmoo_compose_overlays"
+  for overlay in "${overlay_array[@]}"; do
+    overlay="$(trim_env_value "$overlay")"
+    [[ -n "$overlay" ]] || continue
+    case "$overlay" in
+      proxy | tools) ;;
+      *)
+        die "Invalid WPMOO_COMPOSE_OVERLAYS entry: $overlay. Use comma-separated values from: proxy, tools."
+        ;;
+    esac
+    compose_files+=("compose/${overlay}.yaml")
+  done
 fi
 
+for compose_file in "${compose_files[@]}"; do
+  [[ -f "$compose_file" ]] || die "Missing compose overlay: $compose_file"
+done
+
 compose() {
-  docker compose --project-directory "$project_dir" -f compose.yaml -f "$compose_file" "$@"
+  local compose_args=(--project-directory "$project_dir" -f compose.yaml)
+  local compose_file
+  for compose_file in "${compose_files[@]}"; do
+    compose_args+=(-f "$compose_file")
+  done
+  docker compose "${compose_args[@]}" "$@"
 }
 
 default_http_port() {
