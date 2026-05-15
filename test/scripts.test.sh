@@ -36,7 +36,7 @@ make_project() {
 #!/usr/bin/env bash
 set -euo pipefail
 
-printf '%s :: docker %s\n' "$PWD" "$*" >>"$DOCKER_STUB_LOG"
+printf '%s :: HTTP_PORT=%s GEVENT_PORT=%s :: docker %s\n' "$PWD" "${HTTP_PORT:-}" "${GEVENT_PORT:-}" "$*" >>"$DOCKER_STUB_LOG"
 
 case " $* " in
   *" exec -T db pg_dump "*)
@@ -58,8 +58,16 @@ compose_expectation() {
   shift 3
 
   local args
-  args="docker compose --project-directory $project -f compose.yaml -f compose/$env_name.yaml"
+  args="docker compose"
   local overlay
+  for overlay in "$@"; do
+    case "$overlay" in
+      proxy | tools)
+        args+=" --profile $overlay"
+        ;;
+    esac
+  done
+  args+=" --project-directory $project -f compose.yaml -f compose/$env_name.yaml"
   for overlay in "$@"; do
     args+=" -f compose/$overlay.yaml"
   done
@@ -113,6 +121,17 @@ ENV
   run_in_project "$project" ./scripts/compose.sh config
 
   assert_compose_log_contains "$project" stage "config" proxy tools
+}
+
+test_compose_derives_ports_from_odoo_version() {
+  local project
+  project="$(make_project)"
+  echo "ODOO_VERSION=18.0" >"$project/.env"
+
+  run_in_project "$project" ./scripts/compose.sh config
+
+  assert_file_contains "$project/docker.log" "HTTP_PORT=10018 GEVENT_PORT=20018"
+  assert_compose_log_contains "$project" dev "config"
 }
 
 test_compose_rejects_optional_overlay_as_primary_env() {
@@ -388,6 +407,7 @@ for test_name in \
   test_compose_uses_default_dev_overlay \
   test_compose_uses_stage_overlay_from_env \
   test_compose_uses_optional_overlays_from_env \
+  test_compose_derives_ports_from_odoo_version \
   test_compose_rejects_optional_overlay_as_primary_env \
   test_entrypoint_enables_proxy_mode_from_environment \
   test_resetdb_installs_requested_modules \

@@ -60,8 +60,29 @@ odoo_version="${ODOO_VERSION:-19.0}"
 postgres_version="${POSTGRES_VERSION:-18}"
 wpmoo_env="${WPMOO_ENV:-dev}"
 wpmoo_compose_overlays="${WPMOO_COMPOSE_OVERLAYS:-}"
+
+default_http_port() {
+  case "$odoo_version" in
+    17.0) printf '10017' ;;
+    18.0) printf '10018' ;;
+    19.0) printf '10019' ;;
+    *) printf '10019' ;;
+  esac
+}
+
+default_gevent_port() {
+  case "$odoo_version" in
+    17.0) printf '20017' ;;
+    18.0) printf '20018' ;;
+    19.0) printf '20019' ;;
+    *) printf '20019' ;;
+  esac
+}
+
 export ODOO_IMAGE="${ODOO_IMAGE:-odoo:${odoo_version}}"
 export POSTGRES_IMAGE="${POSTGRES_IMAGE:-postgres:${postgres_version}}"
+export HTTP_PORT="${HTTP_PORT:-$(default_http_port)}"
+export GEVENT_PORT="${GEVENT_PORT:-$(default_gevent_port)}"
 
 script_usage_name() {
   local source
@@ -94,6 +115,7 @@ case "$wpmoo_env" in
 esac
 
 compose_files=("compose/${wpmoo_env}.yaml")
+compose_profiles=""
 
 if [[ -n "$wpmoo_compose_overlays" ]]; then
   IFS=',' read -r -a overlay_array <<<"$wpmoo_compose_overlays"
@@ -107,6 +129,7 @@ if [[ -n "$wpmoo_compose_overlays" ]]; then
         ;;
     esac
     compose_files+=("compose/${overlay}.yaml")
+    compose_profiles="${compose_profiles}${compose_profiles:+ }${overlay}"
   done
 fi
 
@@ -115,21 +138,17 @@ for compose_file in "${compose_files[@]}"; do
 done
 
 compose() {
-  local compose_args=(--project-directory "$project_dir" -f compose.yaml)
+  local compose_args=()
+  local compose_profile
+  for compose_profile in $compose_profiles; do
+    compose_args+=(--profile "$compose_profile")
+  done
+  compose_args+=(--project-directory "$project_dir" -f compose.yaml)
   local compose_file
   for compose_file in "${compose_files[@]}"; do
     compose_args+=(-f "$compose_file")
   done
   docker compose "${compose_args[@]}" "$@"
-}
-
-default_http_port() {
-  case "$odoo_version" in
-    17.0) printf '10017' ;;
-    18.0) printf '10018' ;;
-    19.0) printf '10019' ;;
-    *) printf '10019' ;;
-  esac
 }
 
 validate_db_name() {
