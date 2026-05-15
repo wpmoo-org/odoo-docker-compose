@@ -1,0 +1,13 @@
+# WPMoo optional proxy overlay.
+
+services:
+  proxy:
+    image: "${WPMOO_PROXY_IMAGE:-nginx:alpine}"
+    profiles:
+      - proxy
+    depends_on:
+      - odoo
+    networks:
+      - wpmoo
+    ports:
+      - "${PROXY_HTTP_PORT:-80}:80"

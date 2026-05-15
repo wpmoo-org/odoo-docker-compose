@@ -31,8 +31,7 @@ make_project() {
   local project
   project="$(mktemp -d)"
   mkdir -p "$project/bin" "$project/data/filestore/devel"
-  cp -R "$repo_root/scripts" "$project/scripts"
-  cp "$repo_root"/docker-compose_*.yml "$project/"
+  cp -R "$repo_root/resources/generated-env/." "$project/"
   cat >"$project/bin/docker" <<'STUB'
 #!/usr/bin/env bash
 set -euo pipefail
@@ -52,6 +51,20 @@ STUB
   printf '%s\n' "$project"
 }
 
+compose_expectation() {
+  local project="$1"
+  local env_name="$2"
+  local command_suffix="$3"
+  printf 'docker compose --project-directory %s -f compose.yaml -f compose/%s.yaml %s' "$project" "$env_name" "$command_suffix"
+}
+
+assert_compose_log_contains() {
+  local project="$1"
+  local env_name="$2"
+  local command_suffix="$3"
+  assert_log_contains "$project/docker.log" "$(compose_expectation "$project" "$env_name" "$command_suffix")"
+}
+
 run_in_project() {
   local project="$1"
   shift
@@ -61,14 +74,23 @@ run_in_project() {
   )
 }
 
-test_compose_uses_env_version() {
+test_compose_uses_default_dev_overlay() {
   local project
   project="$(make_project)"
-  echo "ODOO_VERSION=18.0" >"$project/.env"
 
   run_in_project "$project" ./scripts/compose.sh config
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_18.0.yml config"
+  assert_compose_log_contains "$project" dev "config"
+}
+
+test_compose_uses_stage_overlay_from_env() {
+  local project
+  project="$(make_project)"
+  echo "WPMOO_ENV=stage" >"$project/.env"
+
+  run_in_project "$project" ./scripts/compose.sh config
+
+  assert_compose_log_contains "$project" stage "config"
 }
 
 test_resetdb_installs_requested_modules() {
@@ -77,10 +99,10 @@ test_resetdb_installs_requested_modules() {
 
   run_in_project "$project" ./scripts/resetdb.sh devel base,crm
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml stop odoo"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db dropdb --if-exists -U odoo devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db createdb -U odoo -O odoo devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i base,crm --stop-after-init"
+  assert_compose_log_contains "$project" dev "stop odoo"
+  assert_compose_log_contains "$project" dev "exec -T db dropdb --if-exists -U odoo devel"
+  assert_compose_log_contains "$project" dev "exec -T db createdb -U odoo -O odoo devel"
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -i base,crm --stop-after-init"
 }
 
 test_module_lifecycle_scripts_use_stock_odoo_commands() {
@@ -92,10 +114,10 @@ test_module_lifecycle_scripts_use_stock_odoo_commands() {
   run_in_project "$project" ./scripts/uninstall.sh sale devel
   run_in_project "$project" ./scripts/test.sh sale --db devel --mode update --tags /sale
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i sale --stop-after-init"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -u sale --stop-after-init"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm -T odoo odoo shell -d devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -u sale --test-enable --stop-after-init --test-tags /sale"
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -i sale --stop-after-init"
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -u sale --stop-after-init"
+  assert_compose_log_contains "$project" dev "run --rm -T odoo odoo shell -d devel"
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -u sale --test-enable --stop-after-init --test-tags /sale"
 }
 
 test_test_script_positional_module_overrides_env_default() {
@@ -105,7 +127,7 @@ test_test_script_positional_module_overrides_env_default() {
 
   run_in_project "$project" ./scripts/test.sh sale --db devel
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init --test-tags /sale"
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init --test-tags /sale"
 }
 
 test_snapshot_and_restore_include_database_and_filestore() {
@@ -118,14 +140,14 @@ test_snapshot_and_restore_include_database_and_filestore() {
   assert_file_exists "$project/backups/snapshots/snap1.dump"
   assert_file_exists "$project/backups/snapshots/snap1.filestore.tar.gz"
   assert_file_exists "$project/backups/snapshots/snap1.json"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db pg_dump -U odoo -Fc devel"
+  assert_compose_log_contains "$project" dev "exec -T db pg_dump -U odoo -Fc devel"
 
   run_in_project "$project" ./scripts/restore-snapshot.sh snap1 devel
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml stop odoo"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db dropdb --if-exists -U odoo devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db createdb -U odoo -O odoo devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec -T db pg_restore -U odoo -d devel --clean --if-exists"
+  assert_compose_log_contains "$project" dev "stop odoo"
+  assert_compose_log_contains "$project" dev "exec -T db dropdb --if-exists -U odoo devel"
+  assert_compose_log_contains "$project" dev "exec -T db createdb -U odoo -O odoo devel"
+  assert_compose_log_contains "$project" dev "exec -T db pg_restore -U odoo -d devel --clean --if-exists"
 }
 
 test_snapshot_and_restore_usage_errors_are_clear() {
@@ -160,8 +182,8 @@ test_psql_and_restart_scripts_delegate_to_compose() {
   run_in_project "$project" ./scripts/psql.sh devel
   run_in_project "$project" ./scripts/restart.sh
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml exec db psql -U odoo -d devel"
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml restart odoo"
+  assert_compose_log_contains "$project" dev "exec db psql -U odoo -d devel"
+  assert_compose_log_contains "$project" dev "restart odoo"
 }
 
 test_pot_exports_with_odoo_i18n_command() {
@@ -170,7 +192,7 @@ test_pot_exports_with_odoo_i18n_command() {
 
   run_in_project "$project" ./scripts/pot.sh sale devel i18n/sale.pot
 
-  assert_log_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml run --rm -v $project:/mnt/project odoo bash -lc"
+  assert_compose_log_contains "$project" dev "run --rm -v $project:/mnt/project odoo bash -lc"
   assert_log_contains "$project/docker.log" "bash devel /mnt/project/i18n/sale.pot sale"
 }
 
@@ -292,7 +314,8 @@ test_lint_usage_errors_are_clear() {
 }
 
 for test_name in \
-  test_compose_uses_env_version \
+  test_compose_uses_default_dev_overlay \
+  test_compose_uses_stage_overlay_from_env \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \

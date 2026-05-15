@@ -1,0 +1,40 @@
+# WPMoo compact generated environment base.
+
+services:
+  db:
+    image: "${POSTGRES_IMAGE:-postgres:18}"
+    user: root
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-odoo}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-odoo}"
+      POSTGRES_DB: "${POSTGRES_DB:-postgres}"
+    restart: unless-stopped
+    networks:
+      - wpmoo
+
+  odoo:
+    image: "${ODOO_IMAGE:-odoo:19}"
+    user: root
+    depends_on:
+      - db
+    tty: true
+    command: --
+    environment:
+      HOST: db
+      USER: "${POSTGRES_USER:-odoo}"
+      PASSWORD: "${POSTGRES_PASSWORD:-odoo}"
+      ODOO_MASTER_PASSWORD: "${ODOO_MASTER_PASSWORD:-admin}"
+      PIP_BREAK_SYSTEM_PACKAGES: "1"
+    restart: unless-stopped
+    networks:
+      - wpmoo
+
+networks:
+  wpmoo:
+    name: "${COMPOSE_PROJECT_NAME:-wpmoo}_network"
+
+volumes:
+  db-data:
+  odoo-data:
+  odoo-addons:
+  odoo-private-src:

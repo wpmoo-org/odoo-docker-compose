@@ -1,0 +1,32 @@
+# WPMoo production overlay.
+
+services:
+  db:
+    volumes:
+      - db-data:/var/lib/postgresql/18/docker
+
+  odoo:
+    environment:
+      PROXY_MODE: "${PROXY_MODE:-1}"
+    configs:
+      - source: wpmoo-odoo-entrypoint
+        target: /entrypoint.sh
+        mode: 0555
+      - source: wpmoo-odoo-conf
+        target: /etc/odoo/odoo.conf
+        mode: 0444
+      - source: wpmoo-odoo-requirements
+        target: /etc/odoo/requirements.txt
+        mode: 0444
+    volumes:
+      - odoo-addons:/mnt/extra-addons
+      - odoo-private-src:/mnt/wpmoo-src/private
+      - odoo-data:/var/lib/odoo
+
+configs:
+  wpmoo-odoo-entrypoint:
+    file: ./resources/odoo/entrypoint.sh
+  wpmoo-odoo-conf:
+    file: ./config/odoo/odoo.conf
+  wpmoo-odoo-requirements:
+    file: ./config/odoo/requirements.txt

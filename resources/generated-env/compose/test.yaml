@@ -1,0 +1,19 @@
+# WPMoo test overlay for deterministic module test runs.
+
+services:
+  db:
+    tmpfs:
+      - /var/lib/postgresql/18/docker
+
+  odoo:
+    environment:
+      ODOO_TESTING: "1"
+    volumes:
+      - ./resources/odoo/entrypoint.sh:/entrypoint.sh:ro
+      - ./addons:/mnt/extra-addons
+      - ./odoo/custom/src/private:/mnt/wpmoo-src/private
+      - ./config/odoo:/etc/odoo
+      - odoo-test-data:/var/lib/odoo
+
+volumes:
+  odoo-test-data:

@@ -1,0 +1,12 @@
+# WPMoo optional tooling overlay.
+
+services:
+  mailhog:
+    image: "${WPMOO_MAILHOG_IMAGE:-mailhog/mailhog:v1.0.1}"
+    profiles:
+      - tools
+    networks:
+      - wpmoo
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_HTTP_PORT:-8025}:8025"
