@@ -1,4 +1,5 @@
-# WPMoo Odoo Docker Compose template.
+# Legacy standalone compatibility file (17.0).
+# Prefer resources/generated-env/compose.yaml + overlays in resources/generated-env/compose/.
 # https://www.wpmoo.org
 
 services:

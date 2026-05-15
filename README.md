@@ -11,7 +11,7 @@ be used standalone, or copied into a WPMoo-managed Odoo dev environment by
 
 ## Compose layouts
 
-Compact generated-environment payload (preferred by `@wpmoo/odoo`):
+Compact generated-environment payload is the canonical layout (preferred by `@wpmoo/odoo`):
 
 ```text
 resources/generated-env/compose.yaml
@@ -22,7 +22,7 @@ resources/generated-env/config/odoo/odoo.conf
 resources/generated-env/resources/odoo/entrypoint.sh
 ```
 
-Legacy compatibility files (repository root):
+Legacy standalone compatibility files (repository root):
 
 ```text
 docker-compose_17.0.yml
@@ -30,9 +30,9 @@ docker-compose_18.0.yml
 docker-compose_19.0.yml
 ```
 
-`@wpmoo/odoo` prefers the compact payload first. Older pinned refs that do not
-have `resources/generated-env/` can still be consumed through the legacy
-root-level files.
+`@wpmoo/odoo` resolves generated environments from `resources/generated-env/` first.
+The root-level files are retained for standalone compatibility with older scripts and
+repositories that still refer to these filenames.
 
 Default local settings use Odoo 19 on port `10019`. Image tags can be
 overridden in `.env` with `ODOO_IMAGE` and `POSTGRES_IMAGE`.
@@ -59,7 +59,7 @@ The static Odoo config uses:
 /usr/lib/python3/dist-packages/odoo/addons,/mnt/extra-addons,/mnt/wpmoo-addons
 ```
 
-## Standalone usage (compact payload)
+## Standalone usage (canonical, generated layout)
 
 ```bash
 mkdir -p ../my_product_dev
@@ -159,19 +159,15 @@ Restart only Odoo:
 ./scripts/restart.sh
 ```
 
-## Standalone Docker Compose usage
+## Standalone legacy compatibility usage
 
-Legacy/root-layout usage without scripts:
+Root legacy compose files are supported for older standalone workflows:
 
 ```bash
 cp .env.example .env
 docker compose -f docker-compose_19.0.yml up -d
-```
-
-For Odoo 18:
-
-```bash
-ODOO_VERSION=18.0 docker compose -f docker-compose_18.0.yml up -d
+docker compose -f docker-compose_18.0.yml up -d
+docker compose -f docker-compose_17.0.yml up -d
 ```
 
 ## Future reverse proxy

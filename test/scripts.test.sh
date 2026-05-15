@@ -108,6 +108,14 @@ test_compose_uses_default_dev_overlay() {
   assert_compose_log_contains "$project" dev "config"
 }
 
+test_legacy_compose_files_are_compatible() {
+  assert_file_contains "$repo_root/docker-compose_19.0.yml" "/var/lib/postgresql"
+  assert_file_not_contains "$repo_root/docker-compose_19.0.yml" "/var/lib/postgresql/18/docker"
+
+  assert_file_contains "$repo_root/docker-compose_18.0.yml" "/var/lib/postgresql/data"
+  assert_file_contains "$repo_root/docker-compose_17.0.yml" "/var/lib/postgresql/data"
+}
+
 test_generated_env_mounts_postgres_parent_directory() {
   local overlay
 
@@ -427,6 +435,7 @@ for test_name in \
   test_compose_uses_default_dev_overlay \
   test_generated_env_mounts_postgres_parent_directory \
   test_compose_uses_stage_overlay_from_env \
+  test_legacy_compose_files_are_compatible \
   test_compose_uses_optional_overlays_from_env \
   test_compose_derives_ports_from_odoo_version \
   test_compose_rejects_optional_overlay_as_primary_env \
