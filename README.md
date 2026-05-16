@@ -1,13 +1,16 @@
-![WPMoo Odoo Compose local development overview](docs/assets/odoo-compose-hero.png)
+![WPMoo Compose for Odoo environment overview](docs/assets/odoo-compose-hero.png)
 
 [![GitHub](https://img.shields.io/badge/GitHub-181717?logo=github&style=flat-square)](https://github.com/wpmoo-org/odoo-docker-compose) [![CI](https://img.shields.io/github/actions/workflow/status/wpmoo-org/odoo-docker-compose/ci.yml?branch=main&label=CI&style=flat-square)](https://github.com/wpmoo-org/odoo-docker-compose/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue?style=flat-square)](LICENSE) [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-FFDD00?logo=buymeacoffee&logoColor=000000&style=flat-square)](https://www.buymeacoffee.com/cangir)
 
 
-# WPMoo Odoo Compose
+# WPMoo Compose for Odoo
 
-Lightweight Docker Compose resources for Odoo development. This repository can
-be used standalone, or copied into a WPMoo-managed Odoo dev environment by
-`@wpmoo/odoo`.
+Lightweight Docker Compose resources for Odoo development, staging, and
+production-oriented environments. This repository can be used standalone, or
+copied into an Odoo environment managed with `@wpmoo/odoo`.
+
+WPMoo Compose for Odoo is an independent project and is not affiliated with,
+endorsed by, or sponsored by Odoo S.A. Odoo is a trademark of Odoo S.A.
 
 ## Compose layouts
 
