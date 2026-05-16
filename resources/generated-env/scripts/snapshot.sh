@@ -32,9 +32,12 @@ cat >"$manifest_path" <<EOF
 {
   "name": "$snapshot",
   "database": "$db",
+  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "dump": "$(basename "$dump_path")",
   "filestore": "$(basename "$filestore_path")"
 }
 EOF
+
+prune_snapshots "$snapshot_dir"
 
 echo "Snapshot written to $snapshot_dir/$snapshot.*"

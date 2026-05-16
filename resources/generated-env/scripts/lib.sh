@@ -60,6 +60,8 @@ odoo_version="${ODOO_VERSION:-19.0}"
 postgres_version="${POSTGRES_VERSION:-18}"
 wpmoo_env="${WPMOO_ENV:-dev}"
 wpmoo_compose_overlays="${WPMOO_COMPOSE_OVERLAYS:-}"
+wpmoo_allow_destructive="${WPMOO_ALLOW_DESTRUCTIVE:-}"
+wpmoo_snapshot_retention_count="${WPMOO_SNAPSHOT_RETENTION_COUNT:-0}"
 
 default_http_port() {
   case "$odoo_version" in
@@ -161,6 +163,49 @@ validate_snapshot_name() {
   local snapshot="$1"
   [[ "$snapshot" =~ ^[A-Za-z0-9_.-]+$ && "$snapshot" != -* ]] ||
     die "Invalid snapshot name: $snapshot. Use letters, numbers, dots, underscores, and dashes only; do not start with a dash."
+}
+
+is_truthy() {
+  case "${1:-}" in
+    1 | true | TRUE | yes | YES | y | Y) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+require_destructive_allowed() {
+  local action="$1"
+  case "$wpmoo_env" in
+    stage | prod)
+      is_truthy "$wpmoo_allow_destructive" ||
+        die "Refusing destructive database action '$action' in WPMOO_ENV=$wpmoo_env."$'\n'"Set WPMOO_ALLOW_DESTRUCTIVE=1 to continue."
+      ;;
+  esac
+}
+
+validate_snapshot_retention_count() {
+  [[ "$wpmoo_snapshot_retention_count" =~ ^[0-9]+$ ]] ||
+    die "Invalid WPMOO_SNAPSHOT_RETENTION_COUNT: $wpmoo_snapshot_retention_count. Use 0 or a positive integer."
+}
+
+prune_snapshots() {
+  local snapshot_dir="$1"
+  validate_snapshot_retention_count
+  [[ "$wpmoo_snapshot_retention_count" -gt 0 ]] || return 0
+
+  local manifests=()
+  local manifest
+  while IFS= read -r manifest; do
+    manifests+=("$manifest")
+  done < <(find "$snapshot_dir" -maxdepth 1 -type f -name '*.json' | sort)
+
+  local excess=$((${#manifests[@]} - wpmoo_snapshot_retention_count))
+  [[ "$excess" -gt 0 ]] || return 0
+
+  local index stem
+  for ((index = 0; index < excess; index += 1)); do
+    stem="${manifests[$index]%.json}"
+    rm -f "$stem.dump" "$stem.filestore.tar.gz" "$stem.json"
+  done
 }
 
 validate_module_name() {

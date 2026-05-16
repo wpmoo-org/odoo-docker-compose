@@ -268,6 +268,73 @@ test_snapshot_and_restore_include_database_and_filestore() {
   assert_compose_log_contains "$project" dev "exec -T db pg_restore -U odoo -d devel --clean --if-exists"
 }
 
+test_restore_snapshot_dry_run_reports_plan_without_compose() {
+  local project
+  project="$(make_project)"
+  mkdir -p "$project/backups/snapshots"
+  printf 'dump\n' >"$project/backups/snapshots/snap1.dump"
+  tar -czf "$project/backups/snapshots/snap1.filestore.tar.gz" -C "$project/data/filestore" devel
+
+  run_in_project "$project" ./scripts/restore-snapshot.sh --dry-run snap1 devel >"$project/restore-preview.out"
+
+  assert_file_contains "$project/restore-preview.out" "Restore snapshot preview"
+  assert_file_contains "$project/restore-preview.out" "Snapshot: snap1"
+  assert_file_contains "$project/restore-preview.out" "Database: devel"
+  assert_file_contains "$project/restore-preview.out" "No changes were made."
+  [[ ! -f "$project/docker.log" ]] || fail "restore dry-run must not call docker compose"
+}
+
+test_destructive_database_actions_require_stage_prod_confirmation() {
+  local project
+  project="$(make_project)"
+  echo "WPMOO_ENV=stage" >"$project/.env"
+
+  if run_in_project "$project" ./scripts/resetdb.sh devel base >"$project/resetdb-stage.out" 2>"$project/resetdb-stage.err"; then
+    fail "expected resetdb to fail in stage without explicit destructive allow"
+  fi
+  assert_file_contains "$project/resetdb-stage.err" "Refusing destructive database action 'resetdb' in WPMOO_ENV=stage."
+  assert_file_contains "$project/resetdb-stage.err" "Set WPMOO_ALLOW_DESTRUCTIVE=1 to continue."
+
+  if run_in_project "$project" ./scripts/restore-snapshot.sh snap1 devel >"$project/restore-stage.out" 2>"$project/restore-stage.err"; then
+    fail "expected restore-snapshot to fail in stage without explicit destructive allow"
+  fi
+  assert_file_contains "$project/restore-stage.err" "Refusing destructive database action 'restore-snapshot' in WPMOO_ENV=stage."
+}
+
+test_destructive_database_actions_allow_explicit_stage_confirmation() {
+  local project
+  project="$(make_project)"
+  cat >"$project/.env" <<'ENV'
+WPMOO_ENV=stage
+WPMOO_ALLOW_DESTRUCTIVE=1
+ENV
+
+  run_in_project "$project" ./scripts/resetdb.sh devel base
+
+  assert_compose_log_contains "$project" stage "exec -T db dropdb --if-exists -U odoo devel"
+}
+
+test_snapshot_retention_prunes_old_snapshot_files() {
+  local project snapshot_dir
+  project="$(make_project)"
+  snapshot_dir="$project/backups/snapshots"
+  mkdir -p "$snapshot_dir"
+  for snapshot in snap-a snap-b; do
+    printf 'dump\n' >"$snapshot_dir/$snapshot.dump"
+    printf '{}\n' >"$snapshot_dir/$snapshot.json"
+    tar -czf "$snapshot_dir/$snapshot.filestore.tar.gz" -C "$project/data/filestore" devel
+  done
+  echo "WPMOO_SNAPSHOT_RETENTION_COUNT=2" >"$project/.env"
+
+  run_in_project "$project" ./scripts/snapshot.sh devel snap-c
+
+  [[ ! -e "$snapshot_dir/snap-a.dump" ]] || fail "expected oldest snapshot dump to be pruned"
+  [[ ! -e "$snapshot_dir/snap-a.filestore.tar.gz" ]] || fail "expected oldest snapshot filestore to be pruned"
+  [[ ! -e "$snapshot_dir/snap-a.json" ]] || fail "expected oldest snapshot manifest to be pruned"
+  assert_file_exists "$snapshot_dir/snap-b.dump"
+  assert_file_exists "$snapshot_dir/snap-c.dump"
+}
+
 test_snapshot_and_restore_usage_errors_are_clear() {
   local project
   project="$(make_project)"
@@ -290,7 +357,7 @@ test_snapshot_and_restore_usage_errors_are_clear() {
   if run_in_project "$project" ./scripts/restore-snapshot.sh >"$project/restore-usage.out" 2>"$project/restore-usage.err"; then
     fail "expected restore to fail without snapshot name"
   fi
-  assert_file_contains "$project/restore-usage.err" "Usage: ./scripts/restore-snapshot.sh <snapshot-name> [db]"
+  assert_file_contains "$project/restore-usage.err" "Usage: ./scripts/restore-snapshot.sh [--dry-run] <snapshot-name> [db]"
 }
 
 test_psql_and_restart_scripts_delegate_to_compose() {
@@ -444,6 +511,10 @@ for test_name in \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \
   test_snapshot_and_restore_include_database_and_filestore \
+  test_restore_snapshot_dry_run_reports_plan_without_compose \
+  test_destructive_database_actions_require_stage_prod_confirmation \
+  test_destructive_database_actions_allow_explicit_stage_confirmation \
+  test_snapshot_retention_prunes_old_snapshot_files \
   test_snapshot_and_restore_usage_errors_are_clear \
   test_psql_and_restart_scripts_delegate_to_compose \
   test_pot_exports_with_odoo_i18n_command \

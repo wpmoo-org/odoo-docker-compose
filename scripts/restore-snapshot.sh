@@ -3,12 +3,18 @@ set -euo pipefail
 
 . "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-[[ $# -le 2 ]] || die_usage "<snapshot-name> [db]"
+dry_run=0
+if [[ "${1:-}" == "--dry-run" ]]; then
+  dry_run=1
+  shift
+fi
+
+[[ $# -le 2 ]] || die_usage "[--dry-run] <snapshot-name> [db]"
 
 snapshot="${1:-}"
 db="${2:-devel}"
 
-[[ -n "$snapshot" ]] || die_usage "<snapshot-name> [db]"
+[[ -n "$snapshot" ]] || die_usage "[--dry-run] <snapshot-name> [db]"
 validate_snapshot_name "$snapshot"
 validate_db_name "$db"
 
@@ -16,8 +22,24 @@ snapshot_dir="$project_dir/backups/snapshots"
 dump_path="$snapshot_dir/$snapshot.dump"
 filestore_path="$snapshot_dir/$snapshot.filestore.tar.gz"
 
+if [[ "$dry_run" -eq 0 ]]; then
+  require_destructive_allowed "restore-snapshot"
+fi
+
 [[ -f "$dump_path" ]] || die "Missing snapshot dump: $dump_path"
 [[ -f "$filestore_path" ]] || die "Missing snapshot filestore: $filestore_path"
+
+if [[ "$dry_run" -eq 1 ]]; then
+  cat <<EOF
+Restore snapshot preview
+Snapshot: $snapshot
+Database: $db
+Dump: $dump_path
+Filestore: $filestore_path
+No changes were made.
+EOF
+  exit 0
+fi
 
 compose stop odoo
 compose exec -T db dropdb --if-exists -U odoo "$db"

@@ -125,6 +125,7 @@ Create and restore a local development snapshot:
 
 ```bash
 ./scripts/snapshot.sh devel before-large-change
+./scripts/restore-snapshot.sh --dry-run before-large-change devel
 ./scripts/restore-snapshot.sh before-large-change devel
 ```
 
@@ -132,10 +133,21 @@ Create and restore a local development snapshot:
 name. Each snapshot writes `backups/snapshots/<name>.dump`,
 `<name>.filestore.tar.gz`, and `<name>.json`. The filestore archive contains the
 matching Odoo filestore from `data/filestore/<db>` when it exists.
-`restore-snapshot.sh <snapshot-name> [db]` restores the dump and filestore into
-the target database, replacing the current local database and filestore for that
-database. Snapshot names may contain only letters, numbers, dots, underscores,
-and dashes, and may not start with a dash.
+Set `WPMOO_SNAPSHOT_RETENTION_COUNT` to a positive integer to keep only the
+newest snapshot manifests and their matching dump/filestore files.
+`restore-snapshot.sh [--dry-run] <snapshot-name> [db]` validates and previews
+the selected snapshot with `--dry-run`, or restores the dump and filestore into
+the target database without it, replacing the current local database and
+filestore for that database. Snapshot names may contain only letters, numbers,
+dots, underscores, and dashes, and may not start with a dash.
+
+Destructive database actions are guarded in `WPMOO_ENV=stage` and
+`WPMOO_ENV=prod`. To intentionally run `resetdb.sh` or a real
+`restore-snapshot.sh` in those environments, set:
+
+```bash
+WPMOO_ALLOW_DESTRUCTIVE=1
+```
 
 Export a translation template with stock Odoo:
 
