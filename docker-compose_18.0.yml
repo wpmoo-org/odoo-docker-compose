@@ -20,8 +20,8 @@ services:
     depends_on:
       - db
     ports:
-      - "${HTTP_PORT:-10018}:8069"
-      - "${GEVENT_PORT:-20018}:8072"
+      - "${ODOO_HTTP_HOST:-127.0.0.1}:${HTTP_PORT:-10018}:8069"
+      - "${ODOO_GEVENT_HOST:-127.0.0.1}:${GEVENT_PORT:-20018}:8072"
     tty: true
     command: --
     environment:

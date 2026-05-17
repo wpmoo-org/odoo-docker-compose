@@ -3,14 +3,14 @@
 services:
   db:
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./postgresql:/var/lib/postgresql
 
   odoo:
     ports:
-      - "${HTTP_PORT:-10019}:8069"
-      - "${GEVENT_PORT:-20019}:8072"
+      - "${ODOO_HTTP_HOST:-127.0.0.1}:${HTTP_PORT:-10019}:8069"
+      - "${ODOO_GEVENT_HOST:-127.0.0.1}:${GEVENT_PORT:-20019}:8072"
     volumes:
       - ./resources/odoo/entrypoint.sh:/entrypoint.sh:ro
       - ./addons:/mnt/extra-addons

@@ -139,7 +139,53 @@ for compose_file in "${compose_files[@]}"; do
   [[ -f "$compose_file" ]] || die "Missing compose overlay: $compose_file"
 done
 
+has_compose_profile() {
+  local expected="$1"
+  local compose_profile
+  for compose_profile in $compose_profiles; do
+    [[ "$compose_profile" == "$expected" ]] && return 0
+  done
+  return 1
+}
+
+default_secret_context() {
+  case "$wpmoo_env" in
+    stage | prod)
+      printf 'WPMOO_ENV=%s' "$wpmoo_env"
+      return 0
+      ;;
+  esac
+
+  if has_compose_profile proxy; then
+    printf 'proxy overlay'
+    return 0
+  fi
+
+  return 1
+}
+
+require_non_default_secret() {
+  local context="$1"
+  local name="$2"
+  local value="$3"
+  local default_value="$4"
+
+  if [[ -z "$value" || "$value" == "$default_value" || "$value" == replace-with-* || "$value" == change-me* ]]; then
+    die "Refusing to run $context with default $name."$'\n'"Set $name to a non-default secret in .env before continuing."
+  fi
+}
+
+require_safe_runtime_secrets() {
+  local context
+  context="$(default_secret_context)" || return 0
+
+  require_non_default_secret "$context" "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-odoo}" "odoo"
+  require_non_default_secret "$context" "ODOO_MASTER_PASSWORD" "${ODOO_MASTER_PASSWORD:-admin}" "admin"
+}
+
 compose() {
+  require_safe_runtime_secrets
+
   local compose_args=()
   local compose_profile
   for compose_profile in $compose_profiles; do

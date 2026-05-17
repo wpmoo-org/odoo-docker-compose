@@ -5,12 +5,51 @@ project_dir="$(cd -- "$script_dir/.." && pwd)"
 
 cd "$project_dir"
 
-if [[ -f .env ]]; then
-  set -a
-  # shellcheck disable=SC1091
-  source .env
-  set +a
-fi
+trim_env_value() {
+  local value="$1"
+  value="${value%$'\r'}"
+  value="${value#"${value%%[![:space:]]*}"}"
+  value="${value%"${value##*[![:space:]]}"}"
+
+  if [[ "$value" == \"*\" && "$value" == *\" ]]; then
+    value="${value:1:${#value}-2}"
+  elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+    value="${value:1:${#value}-2}"
+  fi
+
+  printf '%s' "$value"
+}
+
+load_env_file() {
+  local env_file="$1"
+  local line key value
+
+  [[ -f "$env_file" ]] || return 0
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%$'\r'}"
+    [[ "$line" =~ ^[[:space:]]*$ ]] && continue
+    [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+    line="${line#"${line%%[![:space:]]*}"}"
+    if [[ "$line" == export[[:space:]]* ]]; then
+      line="${line#export}"
+      line="${line#"${line%%[![:space:]]*}"}"
+    fi
+
+    [[ "$line" == *=* ]] || continue
+    key="${line%%=*}"
+    value="${line#*=}"
+    key="${key%"${key##*[![:space:]]}"}"
+
+    [[ "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]] || continue
+    value="$(trim_env_value "$value")"
+    printf -v "$key" '%s' "$value"
+    export "$key"
+  done <"$env_file"
+}
+
+load_env_file "$project_dir/.env"
 
 odoo_version="${ODOO_VERSION:-19.0}"
 compose_file="docker-compose_${odoo_version}.yml"
@@ -46,7 +85,28 @@ if [[ ! -f "$compose_file" ]]; then
   die "Missing compose file: $compose_file"$'\n'"Set ODOO_VERSION to one of: 17.0, 18.0, 19.0"
 fi
 
+require_non_default_secret() {
+  local context="$1"
+  local name="$2"
+  local value="$3"
+  local default_value="$4"
+
+  if [[ -z "$value" || "$value" == "$default_value" || "$value" == replace-with-* || "$value" == change-me* ]]; then
+    die "Refusing to run $context with default $name."$'\n'"Set $name to a non-default secret in .env before continuing."
+  fi
+}
+
+require_safe_runtime_secrets() {
+  case "$wpmoo_env" in
+    stage | prod)
+      require_non_default_secret "WPMOO_ENV=$wpmoo_env" "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-odoo}" "odoo"
+      require_non_default_secret "WPMOO_ENV=$wpmoo_env" "ODOO_MASTER_PASSWORD" "${ODOO_MASTER_PASSWORD:-admin}" "admin"
+      ;;
+  esac
+}
+
 compose() {
+  require_safe_runtime_secrets
   docker compose -f "$compose_file" "$@"
 }
 

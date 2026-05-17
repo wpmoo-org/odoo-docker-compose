@@ -137,7 +137,11 @@ test_generated_env_mounts_postgres_parent_directory() {
 test_compose_uses_stage_overlay_from_env() {
   local project
   project="$(make_project)"
-  echo "WPMOO_ENV=stage" >"$project/.env"
+  cat >"$project/.env" <<'ENV'
+WPMOO_ENV=stage
+POSTGRES_PASSWORD=stage-db-secret
+ODOO_MASTER_PASSWORD=stage-master-secret
+ENV
 
   run_in_project "$project" ./scripts/compose.sh config
 
@@ -149,12 +153,72 @@ test_compose_uses_optional_overlays_from_env() {
   project="$(make_project)"
   cat >"$project/.env" <<'ENV'
 WPMOO_ENV=stage
+POSTGRES_PASSWORD=stage-db-secret
+ODOO_MASTER_PASSWORD=stage-master-secret
 WPMOO_COMPOSE_OVERLAYS=proxy,tools
 ENV
 
   run_in_project "$project" ./scripts/compose.sh config
 
   assert_compose_log_contains "$project" stage "config" proxy tools
+}
+
+test_compose_blocks_exposed_env_with_default_secrets() {
+  local project
+  project="$(make_project)"
+  echo "WPMOO_ENV=prod" >"$project/.env"
+
+  if run_in_project "$project" ./scripts/compose.sh config >"$project/prod-default.out" 2>"$project/prod-default.err"; then
+    fail "expected prod compose to fail with default secrets"
+  fi
+
+  assert_file_contains "$project/prod-default.err" "Refusing to run WPMOO_ENV=prod with default POSTGRES_PASSWORD."
+  [[ ! -f "$project/docker.log" ]] || fail "default-secret guard must run before docker compose"
+}
+
+test_compose_blocks_proxy_overlay_with_default_secrets() {
+  local project
+  project="$(make_project)"
+  echo "WPMOO_COMPOSE_OVERLAYS=proxy" >"$project/.env"
+
+  if run_in_project "$project" ./scripts/compose.sh config >"$project/proxy-default.out" 2>"$project/proxy-default.err"; then
+    fail "expected proxy compose to fail with default secrets"
+  fi
+
+  assert_file_contains "$project/proxy-default.err" "Refusing to run proxy overlay with default POSTGRES_PASSWORD."
+  [[ ! -f "$project/docker.log" ]] || fail "default-secret guard must run before docker compose"
+}
+
+test_dev_ports_bind_to_localhost_by_default() {
+  assert_file_contains "$repo_root/resources/generated-env/compose/dev.yaml" '"${POSTGRES_HOST:-127.0.0.1}:${POSTGRES_PORT:-5432}:5432"'
+  assert_file_contains "$repo_root/resources/generated-env/compose/dev.yaml" '"${ODOO_HTTP_HOST:-127.0.0.1}:${HTTP_PORT:-10019}:8069"'
+  assert_file_contains "$repo_root/resources/generated-env/compose/debug.yaml" '"${ODOO_HTTP_HOST:-127.0.0.1}:${HTTP_PORT:-10019}:8069"'
+}
+
+test_legacy_env_file_does_not_execute_shell() {
+  local project
+  project="$(mktemp -d)"
+  mkdir -p "$project/bin" "$project/scripts"
+  cp "$repo_root/docker-compose_19.0.yml" "$project/docker-compose_19.0.yml"
+  cp "$repo_root/scripts/lib.sh" "$repo_root/scripts/compose.sh" "$project/scripts/"
+  cat >"$project/bin/docker" <<'STUB'
+#!/usr/bin/env bash
+set -euo pipefail
+printf 'docker %s\n' "$*" >>"$DOCKER_STUB_LOG"
+STUB
+  chmod +x "$project/bin/docker"
+  cat >"$project/.env" <<ENV
+HTTP_PORT=\$(touch "$project/env-executed")
+GEVENT_PORT=20019
+ENV
+
+  (
+    cd "$project"
+    PATH="$project/bin:$PATH" DOCKER_STUB_LOG="$project/docker.log" ./scripts/compose.sh config
+  )
+
+  [[ ! -e "$project/env-executed" ]] || fail "legacy .env parser executed shell command substitution"
+  assert_file_contains "$project/docker.log" "docker compose -f docker-compose_19.0.yml config"
 }
 
 test_compose_derives_ports_from_odoo_version() {
@@ -302,7 +366,11 @@ test_restore_snapshot_dry_run_reports_plan_without_compose() {
 test_destructive_database_actions_require_stage_prod_confirmation() {
   local project
   project="$(make_project)"
-  echo "WPMOO_ENV=stage" >"$project/.env"
+  cat >"$project/.env" <<'ENV'
+WPMOO_ENV=stage
+POSTGRES_PASSWORD=stage-db-secret
+ODOO_MASTER_PASSWORD=stage-master-secret
+ENV
 
   if run_in_project "$project" ./scripts/resetdb.sh devel base >"$project/resetdb-stage.out" 2>"$project/resetdb-stage.err"; then
     fail "expected resetdb to fail in stage without explicit destructive allow"
@@ -322,6 +390,8 @@ test_destructive_database_actions_allow_explicit_stage_confirmation() {
   cat >"$project/.env" <<'ENV'
 WPMOO_ENV=stage
 WPMOO_ALLOW_DESTRUCTIVE=1
+POSTGRES_PASSWORD=stage-db-secret
+ODOO_MASTER_PASSWORD=stage-master-secret
 ENV
 
   run_in_project "$project" ./scripts/resetdb.sh devel base
@@ -521,6 +591,10 @@ for test_name in \
   test_compose_uses_optional_overlays_from_env \
   test_compose_derives_ports_from_odoo_version \
   test_compose_rejects_optional_overlay_as_primary_env \
+  test_compose_blocks_exposed_env_with_default_secrets \
+  test_compose_blocks_proxy_overlay_with_default_secrets \
+  test_dev_ports_bind_to_localhost_by_default \
+  test_legacy_env_file_does_not_execute_shell \
   test_entrypoint_enables_proxy_mode_from_environment \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
