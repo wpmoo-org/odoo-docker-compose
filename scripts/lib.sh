@@ -140,12 +140,28 @@ is_truthy() {
 
 require_destructive_allowed() {
   local action="$1"
+  local db="${2:-unknown}"
   case "$wpmoo_env" in
     stage | prod)
       is_truthy "$wpmoo_allow_destructive" ||
         die "Refusing destructive database action '$action' in WPMOO_ENV=$wpmoo_env."$'\n'"Set WPMOO_ALLOW_DESTRUCTIVE=1 to continue."
+      return 0
       ;;
   esac
+
+  if is_truthy "$wpmoo_allow_destructive"; then
+    return 0
+  fi
+
+  if [[ -t 0 ]]; then
+    local confirmation
+    printf "Type '%s' to confirm destructive database action '%s': " "$db" "$action" >&2
+    IFS= read -r confirmation
+    [[ "$confirmation" == "$db" ]] || die "Destructive database action '$action' cancelled."
+    return 0
+  fi
+
+  die "Refusing destructive database action '$action' for database '$db' without confirmation."$'\n'"Set WPMOO_ALLOW_DESTRUCTIVE=1 to continue non-interactively."
 }
 
 validate_snapshot_retention_count() {

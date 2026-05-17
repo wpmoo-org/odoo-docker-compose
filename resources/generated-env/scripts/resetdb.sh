@@ -8,7 +8,7 @@ modules="${2:-base}"
 
 validate_db_name "$db"
 validate_module_list "$modules"
-require_destructive_allowed "resetdb"
+require_destructive_allowed "resetdb" "$db"
 
 compose stop odoo
 compose exec -T db dropdb --if-exists -U odoo "$db"

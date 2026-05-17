@@ -23,7 +23,7 @@ dump_path="$snapshot_dir/$snapshot.dump"
 filestore_path="$snapshot_dir/$snapshot.filestore.tar.gz"
 
 if [[ "$dry_run" -eq 0 ]]; then
-  require_destructive_allowed "restore-snapshot"
+  require_destructive_allowed "restore-snapshot" "$db"
 fi
 
 [[ -f "$dump_path" ]] || die "Missing snapshot dump: $dump_path"

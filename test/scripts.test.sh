@@ -285,7 +285,7 @@ test_resetdb_installs_requested_modules() {
   local project
   project="$(make_project)"
 
-  run_in_project "$project" ./scripts/resetdb.sh devel base,crm
+  WPMOO_ALLOW_DESTRUCTIVE=1 run_in_project "$project" ./scripts/resetdb.sh devel base,crm
 
   assert_compose_log_contains "$project" dev "stop odoo"
   assert_compose_log_contains "$project" dev "exec -T db dropdb --if-exists -U odoo devel"
@@ -339,7 +339,7 @@ test_snapshot_and_restore_include_database_and_filestore() {
   assert_file_exists "$project/backups/snapshots/snap1.json"
   assert_compose_log_contains "$project" dev "exec -T db pg_dump -U odoo -Fc devel"
 
-  run_in_project "$project" ./scripts/restore-snapshot.sh snap1 devel
+  WPMOO_ALLOW_DESTRUCTIVE=1 run_in_project "$project" ./scripts/restore-snapshot.sh snap1 devel
 
   assert_compose_log_contains "$project" dev "stop odoo"
   assert_compose_log_contains "$project" dev "exec -T db dropdb --if-exists -U odoo devel"
@@ -361,6 +361,18 @@ test_restore_snapshot_dry_run_reports_plan_without_compose() {
   assert_file_contains "$project/restore-preview.out" "Database: devel"
   assert_file_contains "$project/restore-preview.out" "No changes were made."
   [[ ! -f "$project/docker.log" ]] || fail "restore dry-run must not call docker compose"
+}
+
+test_destructive_database_actions_require_dev_confirmation_when_non_interactive() {
+  local project
+  project="$(make_project)"
+
+  if run_in_project "$project" ./scripts/resetdb.sh devel base >"$project/resetdb-dev.out" 2>"$project/resetdb-dev.err"; then
+    fail "expected resetdb to fail in dev without non-interactive destructive allow"
+  fi
+  assert_file_contains "$project/resetdb-dev.err" "Refusing destructive database action 'resetdb' for database 'devel' without confirmation."
+  assert_file_contains "$project/resetdb-dev.err" "Set WPMOO_ALLOW_DESTRUCTIVE=1 to continue non-interactively."
+  [[ ! -f "$project/docker.log" ]] || fail "destructive confirmation must run before docker compose"
 }
 
 test_destructive_database_actions_require_stage_prod_confirmation() {
@@ -602,6 +614,7 @@ for test_name in \
   test_test_script_auto_mode_updates_installed_modules \
   test_snapshot_and_restore_include_database_and_filestore \
   test_restore_snapshot_dry_run_reports_plan_without_compose \
+  test_destructive_database_actions_require_dev_confirmation_when_non_interactive \
   test_destructive_database_actions_require_stage_prod_confirmation \
   test_destructive_database_actions_allow_explicit_stage_confirmation \
   test_snapshot_retention_prunes_old_snapshot_files \
