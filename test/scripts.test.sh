@@ -51,7 +51,13 @@ case " $* " in
     printf 'stub dump for %s\n' "$*"
     ;;
   *" exec -T db psql "*)
-    printf 'stub psql for %s\n' "$*"
+    if [[ "$*" == *"pg_database"* ]]; then
+      printf '%s\n' "${DOCKER_STUB_DATABASE_EXISTS:-}"
+    elif [[ "$*" == *"ir_module_module"* ]]; then
+      printf '%s\n' "${DOCKER_STUB_INSTALLED_MODULE_COUNT:-0}"
+    else
+      printf 'stub psql for %s\n' "$*"
+    fi
     ;;
 esac
 STUB
@@ -246,6 +252,15 @@ test_test_script_positional_module_overrides_env_default() {
   run_in_project "$project" ./scripts/test.sh sale --db devel
 
   assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -i sale --test-enable --stop-after-init --test-tags /sale"
+}
+
+test_test_script_auto_mode_updates_installed_modules() {
+  local project
+  project="$(make_project)"
+
+  DOCKER_STUB_DATABASE_EXISTS=1 DOCKER_STUB_INSTALLED_MODULE_COUNT=1 run_in_project "$project" ./scripts/test.sh sale --db devel
+
+  assert_compose_log_contains "$project" dev "run --rm odoo odoo -d devel -u sale --test-enable --stop-after-init --test-tags /sale"
 }
 
 test_snapshot_and_restore_include_database_and_filestore() {
@@ -510,6 +525,7 @@ for test_name in \
   test_resetdb_installs_requested_modules \
   test_module_lifecycle_scripts_use_stock_odoo_commands \
   test_test_script_positional_module_overrides_env_default \
+  test_test_script_auto_mode_updates_installed_modules \
   test_snapshot_and_restore_include_database_and_filestore \
   test_restore_snapshot_dry_run_reports_plan_without_compose \
   test_destructive_database_actions_require_stage_prod_confirmation \
