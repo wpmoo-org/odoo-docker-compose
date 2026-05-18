@@ -7,14 +7,14 @@
 
 Lightweight Docker Compose resources for Odoo development, staging, and
 production-oriented environments. This repository can be used standalone, or
-copied into an Odoo environment managed with `@wpmoo/odoo`.
+copied into an Odoo environment managed with `@wpmoo/toolkit`.
 
 WPMoo Compose for Odoo is an independent project and is not affiliated with,
 endorsed by, or sponsored by Odoo S.A. Odoo is a trademark of Odoo S.A.
 
 ## Compose layouts
 
-Compact generated-environment payload is the canonical layout (preferred by `@wpmoo/odoo`):
+Compact generated-environment payload is the canonical layout (preferred by `@wpmoo/toolkit`):
 
 ```text
 resources/generated-env/compose.yaml
@@ -33,7 +33,7 @@ docker-compose_18.0.yml
 docker-compose_19.0.yml
 ```
 
-`@wpmoo/odoo` resolves generated environments from `resources/generated-env/` first.
+`@wpmoo/toolkit` resolves generated environments from `resources/generated-env/` first.
 The root-level files are retained for standalone compatibility with older scripts and
 repositories that still refer to these filenames.
 
